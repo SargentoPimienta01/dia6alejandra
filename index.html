@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎁 Flappy Regalo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a0a2e;
+    background-image:
+      radial-gradient(ellipse at 20% 50%, rgba(120, 40, 200, 0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(255, 50, 100, 0.1) 0%, transparent 50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    padding: 8px;
+  }
+
+  #hud {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 420px;
+    padding: 6px 4px;
+    margin-bottom: 6px;
+  }
+
+  .stat-box {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 14px;
+    padding: 6px 14px;
+    text-align: center;
+    backdrop-filter: blur(6px);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6bf5, #ffcc00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  #title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    text-shadow: 0 0 20px rgba(255,107,245,0.5);
+  }
+
+  #gameCanvas {
+    border-radius: 16px;
+    border: 2px solid rgba(255,255,255,0.1);
+    box-shadow:
+      0 0 40px rgba(120, 40, 200, 0.3),
+      inset 0 0 60px rgba(0,0,0,0.3);
+    display: block;
+    background: #0d0618;
+    max-width: 100%;
+  }
+
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 4, 24, 0.92);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+
+  #overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .overlay-icon {
+    font-size: 64px;
+    margin-bottom: 10px;
+    animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes bounceIn {
+    0% { transform: scale(0); }
+    100% { transform: scale(1); }
+  }
+
+  .overlay-title {
+    font-size: 30px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 6px;
+    text-align: center;
+    text-shadow: 0 0 30px rgba(255,107,245,0.6);
+  }
+
+  .overlay-sub {
+    font-size: 15px;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 24px;
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.5;
+    padding: 0 20px;
+  }
+
+  .play-btn {
+    padding: 14px 48px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #c840e9, #ff6bf5);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 4px 30px rgba(200, 64, 233, 0.5);
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .play-btn:active {
+    transform: scale(0.95);
+  }
+
+  .overlay-score {
+    font-size: 14px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 14px;
+  }
+
+  .hint {
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    margin-top: 8px;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="stat-box">
+    <div class="stat-label">Tiempo</div>
+    <div class="stat-value" id="timeDisplay">0.0s</div>
+  </div>
+  <div id="title">🎁 Flappy Regalo<br><span style="font-size:11px;opacity:0.6">Meta: 20s</span></div>
+  <div class="stat-box">
+    <div class="stat-label">Mejor</div>
+    <div class="stat-value" id="bestDisplay">0.0s</div>
+  </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="overlay">
+  <div class="overlay-icon">🎁✨</div>
+  <div class="overlay-title">Flappy Regalo</div>
+  <div class="overlay-sub">Sobrevive <b>20 segundos</b> esquivando tareas, estrés y alarmas para llegar a la meta del cumpleaños 🎂</div>
+  <button class="play-btn" id="startBtn">🎮 ¡Jugar!</button>
+  <div class="overlay-score" id="overlayScore"></div>
+  <div class="hint">Toca la pantalla o presiona ESPACIO para saltar</div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const timeDisplay = document.getElementById('timeDisplay');
+  const bestDisplay = document.getElementById('bestDisplay');
+  const overlay = document.getElementById('overlay');
+  const overlayScore = document.getElementById('overlayScore');
+  const startBtn = document.getElementById('startBtn');
+
+  // Dimensiones del canvas (vertical, tipo móvil)
+  const W = 380, H = 580;
+  canvas.width = W;
+  canvas.height = H;
+
+  // Física
+  const GRAVITY = 0.45;
+  const JUMP = -7.8;
+  const PIPE_SPEED = 2.6;
+  const PIPE_GAP = 165;
+  const PIPE_WIDTH = 62;
+  const PIPE_SPACING = 230; // distancia horizontal entre tubos
+  const GOAL_TIME = 20; // segundos para ganar
+
+  // Obstáculos temáticos
+  const OBSTACLE_EMOJIS = ['📚', '💼', '📝', '😰', '⏰', '💢', '📊', '🧾', '☕', '💻'];
+
+  let player, pipes, particles, time, best = 0, alive, started, frameCount;
+  let bgStars = [];
+
+  // Estrellas de fondo (decorativas)
+  for (let i = 0; i < 30; i++) {
+    bgStars.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.5 + 0.3,
+      tw: Math.random() * Math.PI * 2
+    });
+  }
+
+  function init() {
+    player = { x: 85, y: H / 2, vy: 0, rot: 0, size: 38 };
+    pipes = [];
+    particles = [];
+    time = 0;
+    frameCount = 0;
+    alive = true;
+    // Primer tubo con espacio inicial
+    spawnPipe(W + 100);
+  }
+
+  function spawnPipe(xPos) {
+    const margin = 70;
+    const gapY = margin + Math.random() * (H - PIPE_GAP - margin * 2);
+    const emoji = OBSTACLE_EMOJIS[Math.floor(Math.random() * OBSTACLE_EMOJIS.length)];
+    pipes.push({
+      x: xPos !== undefined ? xPos : W + 20,
+      gapY: gapY,
+      passed: false,
+      emoji: emoji
+    });
+  }
+
+  function spawnParticles(x, y, color, count = 10) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const spd = 1 + Math.random() * 4;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        life: 1,
+        decay: 0.02 + Math.random() * 0.02,
+        size: 2 + Math.random() * 3,
+        color
+      });
+    }
+  }
+
+  function jump() {
+    if (!alive || !started) return;
+    player.vy = JUMP;
+    spawnParticles(player.x, player.y + 15, '#ff6bf5', 6);
+  }
+
+  function update() {
+    if (!alive) return;
+
+    frameCount++;
+    time += 1 / 60;
+    timeDisplay.textContent = time.toFixed(1) + 's';
+
+    // Física del jugador
+    player.vy += GRAVITY;
+    player.y += player.vy;
+    player.rot = Math.max(-0.4, Math.min(1.2, player.vy * 0.08));
+
+    // Colisión con techo/piso
+    if (player.y - player.size / 2 < 0 || player.y + player.size / 2 > H) {
+      die();
+      return;
+    }
+
+    // Mover tubos
+    for (let i = pipes.length - 1; i >= 0; i--) {
+      const p = pipes[i];
+      p.x -= PIPE_SPEED;
+
+      // Colisión con el jugador (AABB con hitbox más pequeña)
+      const px = player.x, py = player.y;
+      const pr = player.size / 2 - 4;
+      if (px + pr > p.x && px - pr < p.x + PIPE_WIDTH) {
+        if (py - pr < p.gapY || py + pr > p.gapY + PIPE_GAP) {
+          die();
+          return;
+        }
+      }
+
+      // Eliminar tubos fuera de pantalla y generar nuevos
+      if (p.x + PIPE_WIDTH < -10) {
+        pipes.splice(i, 1);
+      }
+    }
+
+    // Generar nuevos tubos
+    const lastPipe = pipes[pipes.length - 1];
+    if (!lastPipe || lastPipe.x < W - PIPE_SPACING) {
+      spawnPipe();
+    }
+
+    // Victoria
+    if (time >= GOAL_TIME) {
+      win();
+      return;
+    }
+
+    // Partículas
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.08;
+      p.life -= p.decay;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function die() {
+    alive = false;
+    for (let i = 0; i < 20; i++) {
+      spawnParticles(player.x, player.y, '#ff4466', 1);
+    }
+    setTimeout(() => showOverlay(false), 600);
+  }
+
+  function win() {
+    alive = false;
+    // Explosión festiva
+    for (let i = 0; i < 60; i++) {
+      const colors = ['#ff6bf5', '#ffcc00', '#00ffc8', '#ff4466'];
+      spawnParticles(
+        W / 2 + (Math.random() - 0.5) * 200,
+        H / 2 + (Math.random() - 0.5) * 200,
+        colors[Math.floor(Math.random() * colors.length)], 1
+      );
+    }
+    setTimeout(() => showOverlay(true), 800);
+  }
+
+  function showOverlay(won) {
+    if (time > best) {
+      best = time;
+      bestDisplay.textContent = best.toFixed(1) + 's';
+    }
+
+    const icon = overlay.querySelector('.overlay-icon');
+    const title = overlay.querySelector('.overlay-title');
+    const sub = overlay.querySelector('.overlay-sub');
+
+    if (won) {
+      icon.textContent = '🎂🎉';
+      title.textContent = '¡Ya casi, a dos dias!';
+      title.style.background = 'linear-gradient(135deg, #ffcc00, #00ffc8)';
+      title.style.webkitBackgroundClip = 'text';
+      sub.innerHTML = `Hoy no voy a hablarte del amor. Hoy voy a hablarte de ti. Hay personas que llegan a la vida de los demás y dejan todo un poco más luminoso. No porque lo intenten, sino porque son así. Tú eres una de esas personas. Tienes esa cosa rara de hacer sentir a los demás que están en el lugar correcto, en el momento correcto. Y eso, créeme, no lo tiene cualquiera. Mientras esperas lo que viene, no se te olvide que ya eres suficiente. Que el mundo necesita exactamente lo que tú eres. Ni más, ni menos. 🎁✨`;
+    } else {
+      icon.textContent = '💥📚';
+      title.textContent = '¡Te atrapó el estrés!';
+      title.style.background = 'linear-gradient(135deg, #ff4466, #ff6bf5)';
+      title.style.webkitBackgroundClip = 'text';
+      sub.innerHTML = `Aguantaste <b>${time.toFixed(1)}s</b> de ${GOAL_TIME}s.<br>¡Inténtalo de nuevo! 💪`;
+    }
+
+    overlayScore.textContent = `Mejor tiempo: ${best.toFixed(1)}s 🏅`;
+    startBtn.textContent = '🔄 Reintentar';
+    overlay.classList.remove('hidden');
+  }
+
+  // ---------- RENDER ----------
+  function drawBackground() {
+    // Gradiente de fondo
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#1a0a2e');
+    grad.addColorStop(0.5, '#2a1048');
+    grad.addColorStop(1, '#1a0a2e');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Estrellas
+    for (const s of bgStars) {
+      s.tw += 0.03;
+      const alpha = 0.3 + 0.4 * Math.abs(Math.sin(s.tw));
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Línea de meta (barra dorada al final)
+    if (alive) {
+      const progress = time / GOAL_TIME;
+      const goalX = W - 20;
+      ctx.fillStyle = `rgba(255, 204, 0, ${0.15 + 0.1 * Math.sin(frameCount * 0.1)})`;
+      ctx.fillRect(goalX, 0, 20, H);
+      // Barra de progreso vertical
+      ctx.fillStyle = 'rgba(255, 204, 0, 0.4)';
+      ctx.fillRect(goalX + 6, H - H * progress, 8, H * progress);
+    }
+  }
+
+  function drawPipe(p) {
+    const topH = p.gapY;
+    const botY = p.gapY + PIPE_GAP;
+    const botH = H - botY;
+
+    // Gradiente de los tubos
+    const grad = ctx.createLinearGradient(p.x, 0, p.x + PIPE_WIDTH, 0);
+    grad.addColorStop(0, '#3a1a5e');
+    grad.addColorStop(0.5, '#5a2a8e');
+    grad.addColorStop(1, '#3a1a5e');
+
+    // Tubo superior
+    ctx.fillStyle = grad;
+    ctx.fillRect(p.x, 0, PIPE_WIDTH, topH);
+    // Tubo inferior
+    ctx.fillRect(p.x, botY, PIPE_WIDTH, botH);
+
+    // Bordes brillantes
+    ctx.strokeStyle = 'rgba(255, 107, 245, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.x, 0, PIPE_WIDTH, topH);
+    ctx.strokeRect(p.x, botY, PIPE_WIDTH, botH);
+
+    // "Tapas" de los tubos (más anchas)
+    ctx.fillStyle = '#6a2aae';
+    ctx.fillRect(p.x - 4, topH - 18, PIPE_WIDTH + 8, 18);
+    ctx.fillRect(p.x - 4, botY, PIPE_WIDTH + 8, 18);
+    ctx.strokeRect(p.x - 4, topH - 18, PIPE_WIDTH + 8, 18);
+    ctx.strokeRect(p.x - 4, botY, PIPE_WIDTH + 8, 18);
+
+    // Emoji temático en el hueco (centrado)
+    const centerY = p.gapY + PIPE_GAP / 2;
+    ctx.font = '32px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.emoji, p.x + PIPE_WIDTH / 2, centerY);
+  }
+
+  function drawPlayer() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    ctx.rotate(player.rot);
+
+    // Glow
+    ctx.shadowColor = 'rgba(255, 204, 0, 0.7)';
+    ctx.shadowBlur = 20;
+
+    // Regalo
+    ctx.font = `${player.size}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🎁', 0, 0);
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function draw() {
+    drawBackground();
+    for (const p of pipes) drawPipe(p);
+    drawPlayer();
+    drawParticles();
+  }
+
+  // ---------- LOOP ----------
+  function loop() {
+    if (started) update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- CONTROLES ----------
+  function handleInput(e) {
+    if (e) e.preventDefault();
+    if (!started) return;
+    jump();
+  }
+
+  canvas.addEventListener('touchstart', handleInput, { passive: false });
+  canvas.addEventListener('mousedown', handleInput);
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.key === 'ArrowUp' || e.key === ' ') {
+      e.preventDefault();
+      handleInput();
+    }
+  });
+
+  // Evitar scroll en móvil
+  document.body.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+
+  // ---------- INICIO ----------
+  startBtn.addEventListener('click', () => {
+    overlay.classList.add('hidden');
+    init();
+    started = true;
+  });
+
+  // Render inicial
+  init();
+  started = false;
+  loop();
+})();
+</script>
+</body>
+</html>
